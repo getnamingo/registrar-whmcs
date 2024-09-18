@@ -255,13 +255,14 @@ chmod -R 755 /var/www/html/whmcs/modules/addons/tmch
 
 ```bash
 git clone https://github.com/getnamingo/whmcs-whois
-mv whmcs-whois/Whois /var/www/modules/
-mv whmcs-whois/check.php /var/www/
+mv whmcs-whois/whois /var/www/html/whmcs/modules/addons
+chown -R www-data:www-data /var/www/html/whmcs/modules/addons/whois
+chmod -R 755 /var/www/html/whmcs/modules/addons/whois
 ```
 
-- Go to Extensions > Overview in the admin panel and activate "WHOIS & RDAP Client".
+- Go to Settings > Apps & Integrations in the admin panel, search for "WHOIS & RDAP Client" and then activate "WHOIS & RDAP Client".
 
-- Edit the `/var/www/check.php` file and set your WHOIS and RDAP server URLs by replacing the placeholder values with your actual server addresses.
+- Edit the `/var/www/html/whmcs/modules/addons/whois/check.php` file and set your WHOIS and RDAP server URLs by replacing the placeholder values with your actual server addresses.
 
 ## 13. ICANN Registrar Accreditation Module:
 
