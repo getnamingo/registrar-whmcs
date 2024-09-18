@@ -35,6 +35,8 @@ We're on a mission to make **Namingo** the best it can be, and we need your expe
 
 ## Installation Instructions
 
+Supports Ubuntu 24.04 / PHP 8.1 / WHMCS 8.10
+
 For detailed installation steps, please refer to [install.md](install.md).
 
 ## Support
