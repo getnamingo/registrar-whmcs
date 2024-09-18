@@ -242,10 +242,12 @@ mv whmcs-validation/Validation /var/www/modules/
 
 ```bash
 git clone https://github.com/getnamingo/whmcs-tmch
-mv whmcs-tmch/Tmch /var/www/modules/
+mv whmcs-tmch/tmch /var/www/html/whmcs/modules/addons
+chown -R www-data:www-data /var/www/html/whmcs/modules/addons/tmch
+chmod -R 755 /var/www/html/whmcs/modules/addons/tmch
 ```
 
-- Go to Extensions > Overview in the admin panel and activate "TMCH Claims Notice Support".
+- Go to Settings > Apps & Integrations in the admin panel, search for "TMCH Claims" and then activate "TMCH Claims Notice Support".
 
 - Still this needs to be integrated with your workflow.
 
