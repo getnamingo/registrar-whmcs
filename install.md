@@ -261,15 +261,16 @@ mv whmcs-whois/check.php /var/www/
 
 - Edit the `/var/www/check.php` file and set your WHOIS and RDAP server URLs by replacing the placeholder values with your actual server addresses.
 
-## 13. ICANN Registrar Data Module:
+## 13. ICANN Registrar Accreditation Module:
 
 ```bash
 git clone https://github.com/getnamingo/whmcs-registrar
-mv whmcs-registrar/Registrar /var/www/modules/
+mv whmcs-registrar/whmcs_registrar /var/www/html/whmcs/modules/addons
+chown -R www-data:www-data /var/www/html/whmcs/modules/addons/whmcs_registrar
+chmod -R 755 /var/www/html/whmcs/modules/addons/whmcs_registrar
 ```
 
-- Go to Extensions > Overview in the admin panel and activate "ICANN Registrar".
-
+- Go to Settings > Apps & Integrations in the admin panel, search for "ICANN Registrar" and then activate "ICANN Registrar Accreditation".
 
 ## 14. Installing WHMCS EPP-RFC Extensions:
 
