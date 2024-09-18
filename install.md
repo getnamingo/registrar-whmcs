@@ -261,7 +261,17 @@ mv whmcs-whois/check.php /var/www/
 
 - Edit the `/var/www/check.php` file and set your WHOIS and RDAP server URLs by replacing the placeholder values with your actual server addresses.
 
-## 13. Installing WHMCS EPP-RFC Extensions:
+## 13. ICANN Registrar Data Module:
+
+```bash
+git clone https://github.com/getnamingo/whmcs-registrar
+mv whmcs-registrar/Registrar /var/www/modules/
+```
+
+- Go to Extensions > Overview in the admin panel and activate "ICANN Registrar".
+
+
+## 14. Installing WHMCS EPP-RFC Extensions:
 
 For each registry you support, you will need to install a WHMCS EPP-RFC extension.
 
@@ -269,7 +279,7 @@ Navigate to https://github.com/getpinga/whmcs-epp-rfc and follow the installatio
 
 To execute the required OT&E tests by various registries, you can use our Tembo client at https://github.com/getpinga/tembo
 
-## 14. Further Settings:
+## 15. Further Settings:
 
 1. You will need to link to various ICANN documents in your footer, and also provide your terms and conditions and privacy policy.
 
