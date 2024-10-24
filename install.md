@@ -214,8 +214,8 @@ Edit the `config.php` with the appropriate preferences as required.
 Download and initiate the escrow RDE client setup:
 
 ```bash
-wget https://team-escrow.gitlab.io/escrow-rde-client/releases/escrow-rde-client-v2.1.1-linux_x86_64.tar.gz
-tar -xzf escrow-rde-client-v2.1.1-linux_x86_64.tar.gz
+wget https://team-escrow.gitlab.io/escrow-rde-client/releases/escrow-rde-client-v2.2.0-linux_x86_64.tar.gz
+tar -xzf escrow-rde-client-v2.2.0-linux_x86_64.tar.gz
 ./escrow-rde-client -i
 ```
 
@@ -279,7 +279,7 @@ chmod -R 755 /var/www/html/whmcs/modules/addons/whmcs_registrar
 
 For each registry you support, you will need to install a WHMCS EPP-RFC extension.
 
-Navigate to https://github.com/getpinga/whmcs-epp-rfc and follow the installation instructions specific to each registry.
+Navigate to https://github.com/getnamingo/registrar-whmcs-epp-rfc and follow the installation instructions specific to each registry.
 
 To execute the required OT&E tests by various registries, you can use our Tembo client at https://github.com/getpinga/tembo
 
