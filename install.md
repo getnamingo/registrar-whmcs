@@ -295,7 +295,9 @@ Once you have successfully configured all automation scripts, you are ready to i
 
 ```bash
 git clone https://github.com/getnamingo/whmcs-validation
-mv whmcs-validation/Validation /var/www/modules/
+mv whmcs-validation/validation /var/www/html/whmcs/modules/addons
+chown -R www-data:www-data /var/www/html/whmcs/modules/addons/validation
+chmod -R 755 /var/www/html/whmcs/modules/addons/validation
 ```
 
 - Go to Extensions > Overview in the admin panel and activate "Domain Contact Verification".

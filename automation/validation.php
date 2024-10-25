@@ -51,7 +51,7 @@ foreach ($rows as $row) {
       // Send reminder email
       $to = $registrant_email;
       $subject = 'Contact Information Validation Reminder';
-      $link = $config['registrar_url']."validate?token=$token";
+      $link = $config['registrar_url']."index.php?m=validation&token=".$token;
       $message = "Dear Registrant,\n\nThis is a reminder to validate your contact information for the domain $domain_name. Please click the following link to validate your information:\n\n$link\n\nIf you have already validated your information, please disregard this message.\n\nSincerely,\nThe Registrar";
       send_email($to, $subject, $message, $config);
 

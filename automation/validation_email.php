@@ -41,7 +41,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     // Send email with validation link
     $to = $row['email'];
     $subject = 'Namingo Registrar Validation Link';
-    $link = $config['registrar_url']."validate?token=$token";
+    $link = $config['registrar_url']."index.php?m=validation&token=".$token;
     $message = "Please click the following link to validate your contact information:\n\n$link";
     send_email($to, $subject, $message, $config);
 }
