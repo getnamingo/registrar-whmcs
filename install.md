@@ -160,6 +160,7 @@ Clone the repository to your system:
 ```bash
 git clone https://github.com/getnamingo/registrar-whmcs /opt/registrar
 mkdir /var/log/namingo
+mkdir /opt/registrar/escrow
 ```
 
 ## 7. ICANN Registrar Accreditation Module:

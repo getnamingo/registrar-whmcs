@@ -8,11 +8,11 @@
  */
 
 // Include the generator (FOSS or WHMCS)
-require_once 'includes/FOSS.php';
+require_once 'includes/WHMCS.php';
 require_once 'config.php';
 
-// Use the FOSS class by default
-use Namingo\Registrar\FOSS;
+// Use the WHMCS class by default
+use Namingo\Registrar\WHMCS;
 
 // Set up database connection
 try {
@@ -24,7 +24,7 @@ try {
 }
 
 // Initialise the escrow generator
-$escrowGenerator = new FOSS($pdo, $config['escrow']['full'], $config['escrow']['hdl']);
+$escrowGenerator = new WHMCS($pdo, $config['escrow']['full'], $config['escrow']['hdl']);
 
 // Generate the escrow deposits
 $escrowGenerator->generateFull();

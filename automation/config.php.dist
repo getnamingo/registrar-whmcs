@@ -6,13 +6,13 @@
  *
  * @license MIT
 */
-    
+
 $config = array(
     'db' => array(
         'host' => 'localhost',
-        'username' => getenv('DB_USERNAME'),
-        'password' => getenv('DB_PASSWORD'),
-        'dbname' => 'registrar',
+        'username' => 'your_username',
+        'password' => 'your_password',
+        'dbname' => 'your_database_name',
     ),
     'email' => array(
         'from' => 'no-reply@example.com',

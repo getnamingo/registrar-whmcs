@@ -6,7 +6,7 @@
  *
  * @license MIT
  */
- 
+
 require_once 'config.php';
 require_once 'helpers.php';
 require_once 'includes/eppClient.php';
@@ -26,7 +26,7 @@ try {
 // Define function to update nameservers for expired domain names
 function updateExpiredDomainNameservers($pdo) {
     // Get all expired domain names with registrar nameservers
-    $sql = "SELECT * FROM service_domain WHERE NOW() > expires_at";
+    $sql = "SELECT * FROM namingo_domain WHERE NOW() > exdate";
     $stmt = $pdo->prepare($sql);
     try {
         $stmt->execute();
@@ -36,22 +36,37 @@ function updateExpiredDomainNameservers($pdo) {
             $ns1 = $config['ns1'];
             $ns2 = $config['ns2'];
 
-            // Prepare the SQL query
-            $sql = "UPDATE service_domain SET ns1 = :ns1, ns2 = :ns2 WHERE id = :id";
-            $stmt = $pdo->prepare($sql);
+            // Prepare the SQL to check if ns1 exists
+            $sqlCheck = "SELECT id FROM namingo_host WHERE name = :name";
+            $stmtCheck = $pdo->prepare($sqlCheck);
 
-            // Bind the parameters
-            $stmt->bindParam(':ns1', $ns1);
-            $stmt->bindParam(':ns2', $ns2);
-            $stmt->bindParam(':id', $domain['id']);
+            // Get or insert ns1 and ns2
+            $host_id_1 = getOrInsertHost($pdo, $ns1);
+            $host_id_2 = getOrInsertHost($pdo, $ns2);
 
-            // Execute the query
-            $stmt->execute();
+            // Remove existing mappings from namingo_domain_host_map
+            $sqlDelete = "DELETE FROM namingo_domain_host_map WHERE domain_id = :domain_id";
+            $stmtDelete = $pdo->prepare($sqlDelete);
+            $stmtDelete->bindParam(':domain_id', $domain['id']);
+            $stmtDelete->execute();
+
+            // Insert new mappings for host_id_1 and host_id_2
+            $sqlInsertMap = "INSERT INTO namingo_domain_host_map (domain_id, host_id) VALUES (:domain_id, :host_id)";
+            $stmtInsertMap = $pdo->prepare($sqlInsertMap);
+
+            // Insert mapping for ns1
+            $stmtInsertMap->bindParam(':domain_id', $domain['id']);
+            $stmtInsertMap->bindParam(':host_id', $host_id_1);
+            $stmtInsertMap->execute();
+
+            // Insert mapping for ns2
+            $stmtInsertMap->bindParam(':host_id', $host_id_2);
+            $stmtInsertMap->execute();
 
             // Send EPP update to registry
             $epp = connectEpp("generic", $config);
             $params = array(
-                'domainname' => $domain['sld'].$domain['tld'],
+                'domainname' => $domain['name'],
                 'ns1' => $ns1,
                 'ns2' => $ns2
             );

@@ -12,7 +12,7 @@
       "source": {
         "type": "mysqldump",
         "options": {
-          "databases": "registrar",
+          "databases": "your_database_name",
           "user": "your_username",
           "password": "your_password"
         }
@@ -67,7 +67,7 @@
       "source": {
         "type": "tar",
         "options": {
-          "path": "/var/www",
+          "path": "/var/www/html/whmcs",
           "throttle": "5m"
         }
       },

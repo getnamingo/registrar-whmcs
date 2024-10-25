@@ -26,17 +26,28 @@ try {
 
 try {
     $current_date = date('Y-m-d');
-    $query = "SELECT sld, tld, expires_at, contact_email FROM service_domain WHERE expires_at BETWEEN :current_date AND DATE_ADD(:current_date, INTERVAL 30 DAY)";
+    $query = "SELECT registrant, name, exdate FROM namingo_domain WHERE exdate BETWEEN :current_date AND DATE_ADD(:current_date, INTERVAL 30 DAY)";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['current_date' => $current_date]);
     $domains = $stmt->fetchAll();
 
     if ($domains) {
         foreach ($domains as $domain) {
-            $to = $domain['contact_email'];
+            // Prepare the SQL query
+            $sql = "SELECT email FROM namingo_contact WHERE id = :id";
+            $stmt = $pdo->prepare($sql);
+
+            // Bind the parameter
+            $stmt->bindParam(':id', $domain['registrant'], PDO::PARAM_INT);
+
+            // Execute the query
+            $stmt->execute();
+
+            // Fetch the result
+            $to = $stmt->fetchColumn();
+
             $subject = $config['email']['subject'];
-            $domainName = $domain['sld'].'.'.$domain['tld'];
-            $message = sprintf($config['email']['message'], $domainName, $domain['expires_at']);
+            $message = sprintf($config['email']['message'], $domain['name'], $domain['exdate']);
 
             send_email($to, $subject, $message, $config);
         }
