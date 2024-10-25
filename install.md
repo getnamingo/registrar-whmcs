@@ -214,6 +214,55 @@ systemctl enable rdap.service
 
 After that you can manage RDAP via systemctl as any other service.
 
+### 9.1. Configure Apache for RDAP
+
+```bash
+nano /etc/apache2/sites-available/rdap.conf
+```
+
+Add the following configuration, edit `ServerName` at least:
+
+```bash
+<VirtualHost *:443>
+    ServerName rdap.example.com
+
+    # Reverse Proxy to localhost:7500
+    ProxyPass / http://localhost:7500/
+    ProxyPassReverse / http://localhost:7500/
+
+    # Gzip Encoding
+    AddOutputFilterByType DEFLATE text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript
+
+    # Security Headers
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Content-Security-Policy "default-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; img-src https:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; form-action 'self'; worker-src 'none'; frame-src 'none';"
+    Header unset Server
+
+    # Log configuration
+    CustomLog /var/log/apache2/rdap_access.log combined
+    ErrorLog /var/log/apache2/rdap_error.log
+</VirtualHost>
+```
+
+```bash
+a2ensite rdap.conf
+a2enmod rewrite
+a2enmod proxy
+a2enmod proxy_http
+a2enmod headers
+systemctl restart apache2
+```
+
+### 9.2. Obtain an SSL certificate
+
+```bash
+certbot --apache -d rdap.yourdomain.com
+```
+
 ## 10. Setup Automation Scripts:
 
 ```bash
