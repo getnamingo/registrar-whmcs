@@ -30,12 +30,12 @@ $date = new DateTime();
 $date->sub(new DateInterval('P15D'));
 $registration_date = $date->format('Y-m-d H:i:s');
 $stmt = $pdo->prepare("
-    SELECT sd.sld, sd.tld, sd.contact_email, sd.token, sd.id, sd.ns1, sd.ns2, c.custom_2 
-    FROM service_domain sd
-    INNER JOIN client c ON sd.client_id = c.id
-    WHERE sd.synced_at IS NULL 
-    AND sd.registered_at < :registered_at 
-    AND c.custom_2 = 0
+    SELECT d.registrant, d.name, d.id, 
+           c.id AS cid, c.email, c.validation, c.validation_stamp, c.validation_log
+    FROM namingo_domain d
+    INNER JOIN namingo_contact c ON d.registrant = c.id
+    WHERE d.crdate < :registered_at
+    AND c.validation = 0
 ");
 $stmt->bindParam(':registered_at', $registration_date);
 $stmt->execute();
@@ -44,9 +44,9 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Loop through domains and send reminder email and EPP command to update nameservers
 foreach ($rows as $row) {
   if ($row['custom_2'] == 0) {
-      $domain_name = $row['sld'].$row['tld'];
-      $registrant_email = $row['contact_email'];
-      $token = $row['token'];
+      $domain_name = $row['name'];
+      $registrant_email = $row['email'];
+      $token = $row['validation_log'];
 
       // Send reminder email
       $to = $registrant_email;
@@ -76,7 +76,7 @@ foreach ($rows as $row) {
 
       // Send EPP update to registry
       $params = array(
-          'domainname' => $row['sld'].$row['tld'],
+          'domainname' => $row['name'],
           'ns1' => $ns1,
           'ns2' => $ns2
       );
@@ -92,7 +92,7 @@ foreach ($rows as $row) {
       }
       
       $params = array(
-          'domainname' => $row['sld'].$row['tld'],
+          'domainname' => $row['name'],
           'command' => 'add',
           'status' => 'clientHold'
       );
@@ -110,10 +110,8 @@ foreach ($rows as $row) {
       $logout = $epp->logout();
       
       // Update database with validation reminder sent date and EPP result
-      $stmt = $pdo->prepare("UPDATE service_domain SET validation_reminder_sent_date = NOW(), epp_result = :epp_result WHERE sld = :sld AND tld = :tld");
-      $stmt->bindParam(':epp_result', $epp_result);
-      $stmt->bindParam(':sld', $row['sld']);
-      $stmt->bindParam(':tld', $row['tld']);
+      $stmt = $pdo->prepare("UPDATE namingo_contact SET validation_stamp = NOW() WHERE id = :cid");
+      $stmt->bindParam(':cid', $row['cid']);
       $stmt->execute();
   }
 }
