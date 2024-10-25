@@ -152,7 +152,7 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
     $tld = "." . end($parts);
 
     // Check if the TLD exists in the tld table
-    $stmtTLD = $pdo->prepare("SELECT COUNT(*) FROM tld WHERE tld = :tld");
+    $stmtTLD = $pdo->prepare("SELECT COUNT(*) FROM tbldomainpricing WHERE extension = :tld");
     $stmtTLD->bindParam(':tld', $tld, PDO::PARAM_STR);
     $stmtTLD->execute();
     $tldExists = $stmtTLD->fetchColumn();
@@ -168,12 +168,11 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
     try {
         // Query 1: Get domain details
         $stmt1 = $pdo->prepare("SELECT *,
-            DATE_FORMAT(`registered_at`, '%Y-%m-%dT%H:%i:%sZ') AS `crdate`,
-            DATE_FORMAT(`updated_at`, '%Y-%m-%dT%H:%i:%sZ') AS `update`,
-            DATE_FORMAT(`expires_at`, '%Y-%m-%dT%H:%i:%sZ') AS `exdate`
-            FROM service_domain WHERE sld = :domain AND tld = :tld");
-        $stmt1->bindParam(':domain', $domainName, PDO::PARAM_STR);
-        $stmt1->bindParam(':tld', $tld, PDO::PARAM_STR);
+                    DATE_FORMAT(`crdate`, '%Y-%m-%dT%H:%i:%sZ') AS `crdate`,
+                    DATE_FORMAT(`lastupdate`, '%Y-%m-%dT%H:%i:%sZ') AS `update`,
+                    DATE_FORMAT(`exdate`, '%Y-%m-%dT%H:%i:%sZ') AS `exdate`
+                    FROM namingo_domain WHERE name = :domain");
+        $stmt1->bindParam(':domain', $domain, PDO::PARAM_STR);
         $stmt1->execute();
         $domainDetails = $stmt1->fetch(PDO::FETCH_ASSOC);
 
@@ -248,13 +247,60 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
             return;
         }
 
-        $metaQuery = "SELECT * FROM domain_meta WHERE domain_id = :domain_id";
+        $metaQuery = "SELECT * FROM namingo_domain_meta WHERE domain_id = :domain_id";
         $stmtMeta = $pdo->prepare($metaQuery);
         $stmtMeta->bindParam(':domain_id', $domainDetails['id'], PDO::PARAM_INT);
         $stmtMeta->execute();
         $domainMeta = $stmtMeta->fetch(PDO::FETCH_ASSOC);
+        
+        // Query 4: Get registrant details
+        $stmt4 = $pdo->prepare("SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.voice_x,namingo_contact.fax,namingo_contact.fax_x,namingo_contact.email,namingo_contact_postalInfo.type FROM namingo_contact,namingo_contact_postalInfo WHERE namingo_contact.id=:registrant AND namingo_contact_postalInfo.contact_id=namingo_contact.id");
+        $stmt4->bindParam(':registrant', $domainDetails['registrant'], PDO::PARAM_INT);
+        $stmt4->execute();
+        $registrantDetails = $stmt4->fetch(PDO::FETCH_ASSOC);
 
-        $statusQuery = "SELECT status FROM domain_status WHERE domain_id = :domain_id";
+        // Query 5: Get admin, billing and tech contacts        
+        $stmtMap = $pdo->prepare("SELECT contact_id, type FROM namingo_domain_contact_map WHERE domain_id = :domain_id");
+        $stmtMap->bindParam(':domain_id', $domainDetails['id'], PDO::PARAM_INT);
+        $stmtMap->execute();
+        $contactMap = $stmtMap->fetchAll(PDO::FETCH_ASSOC);
+        
+        $adminDetails = [];
+        $techDetails = [];
+        $billingDetails = [];
+
+        foreach ($contactMap as $map) {
+            $stmtDetails = $pdo->prepare("SELECT namingo_contact.id, namingo_contact.identifier, namingo_contact_postalInfo.name, namingo_contact_postalInfo.org, namingo_contact_postalInfo.street1, namingo_contact_postalInfo.street2, namingo_contact_postalInfo.street3, namingo_contact_postalInfo.city, namingo_contact_postalInfo.sp, namingo_contact_postalInfo.pc, namingo_contact_postalInfo.cc, namingo_contact.voice, namingo_contact.voice_x, namingo_contact.fax, namingo_contact.fax_x, namingo_contact.email,namingo_contact_postalInfo.type FROM namingo_contact, namingo_contact_postalInfo WHERE namingo_contact.id = :contact_id AND namingo_contact_postalInfo.contact_id = namingo_contact.id");
+            $stmtDetails->bindParam(':contact_id', $map['contact_id'], PDO::PARAM_INT);
+            $stmtDetails->execute();
+    
+            $contactDetails = $stmtDetails->fetch(PDO::FETCH_ASSOC);
+    
+            switch ($map['type']) {
+                case 'admin':
+                    $adminDetails[] = $contactDetails;
+                    break;
+                case 'tech':
+                    $techDetails[] = $contactDetails;
+                    break;
+                case 'billing':
+                    $billingDetails[] = $contactDetails;
+                    break;
+            }
+        }
+
+        // Query 6: Get nameservers
+        $stmt6 = $pdo->prepare("
+            SELECT namingo_host.name, namingo_host.id as host_id 
+            FROM namingo_domain_host_map, namingo_host 
+            WHERE namingo_domain_host_map.domain_id = :domain_id 
+            AND namingo_domain_host_map.host_id = namingo_host.id
+        ");
+        $stmt6->bindParam(':domain_id', $domainDetails['id'], PDO::PARAM_INT);
+        $stmt6->execute();
+        $nameservers = $stmt6->fetchAll(PDO::FETCH_ASSOC);
+
+        $statusQuery = "SELECT status FROM namingo_domain_status WHERE domain_id = :domain_id";
         $stmtStatus = $pdo->prepare($statusQuery);
         $stmtStatus->bindParam(':domain_id', $domainDetails['id'], PDO::PARAM_INT);
         $stmtStatus->execute();
@@ -280,35 +326,6 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
             $events[] = ['eventAction' => 'domain transfer', 'eventDate' => date('Y-m-d', strtotime($domainDetails['trdate']))];
         }
         
-        // Nameservers source
-        $nsSources = [
-            'ns1' => $domainDetails['ns1'],
-            'ns2' => $domainDetails['ns2'],
-            'ns3' => $domainDetails['ns3'],
-            'ns4' => $domainDetails['ns4'],
-        ];
-
-        // Filter out empty nameservers
-        $filteredNsSources = array_filter($nsSources, function ($nsName) {
-            return !empty($nsName);
-        });
-
-        // Build RDAP response for nameservers
-        $nameservers = array_map(function ($nsHandle, $nsName) use ($c) {
-            return [
-                'objectClassName' => 'nameserver',
-                'handle' => $nsHandle,
-                'ldhName' => $nsName,
-                'links' => [
-                    [
-                        'href' => 'http://'.$c['rdap_url'].'/nameserver/' . $nsName,
-                        'rel' => 'self',
-                        'type' => 'application/rdap+json',
-                    ],
-                ],
-            ];
-        }, array_keys($filteredNsSources), $filteredNsSources);
-
         // Construct the RDAP response in JSON format
         $domainDetails['registrant_contact_id'] = $domainMeta['registrant_contact_id'];
         $rdapResponse = [
@@ -363,17 +380,17 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
                     ],
                 ],
                 [
-                    mapContactToVCard($domainDetails, 'registrant', $c)
+                    mapContactToVCard($registrantDetails, 'registrant', $c)
                 ],
-                [
-                    mapContactToVCard($domainDetails, 'admin', $c)
-                ],
-                [
-                    mapContactToVCard($domainDetails, 'billing', $c)
-                ],
-                [
-                    mapContactToVCard($domainDetails, 'tech', $c)
-                ],
+                array_map(function ($contact) use ($c) {
+                    return mapContactToVCard($contact, 'admin', $c);
+                }, $adminDetails),
+                array_map(function ($contact) use ($c) {
+                    return mapContactToVCard($contact, 'tech', $c);
+                }, $techDetails),
+                array_map(function ($contact) use ($c) {
+                    return mapContactToVCard($contact, 'billing', $c);
+                }, $billingDetails)
             ),
             'events' => $events,
             'handle' => $domainDetails['id'] . '',
@@ -390,7 +407,29 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
                     'type' => 'application/rdap+json',
                 ]
             ],
-            'nameservers' => $nameservers,
+            'nameservers' => array_map(function ($nameserverDetails) use ($c) {
+                return [
+                    'objectClassName' => 'nameserver',
+                    'handle' => 'H' . $nameserverDetails['host_id'],
+                    'ldhName' => $nameserverDetails['name'],
+                    'links' => [
+                        [
+                            'href' => $c['rdap_url'] . '/nameserver/' . $nameserverDetails['name'],
+                            'rel' => 'self',
+                            'type' => 'application/rdap+json',
+                        ],
+                    ],
+                    'remarks' => [
+                        [
+                            "description" => [
+                                "This record contains only a brief summary. To access the full details, please initiate a specific query targeting this entity."
+                            ],
+                            "title" => "Incomplete Data",
+                            "type" => "The object's information is incomplete due to reasons not currently understood."
+                        ],
+                    ],
+                ];
+            }, $nameservers),
             'status' => $domainStatuses,
             "notices" => [
                 [
