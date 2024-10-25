@@ -112,8 +112,8 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                 $domainName = $parts[0];
                 $tld = "." . end($parts);
 
-                // Check if the TLD exists in the tld table
-                $stmtTLD = $pdo->prepare("SELECT COUNT(*) FROM tld WHERE tld = :tld");
+                // Check if the TLD exists in the tbldomainpricing table
+                $stmtTLD = $pdo->prepare("SELECT COUNT(*) FROM tbldomainpricing WHERE extension = :tld");
                 $stmtTLD->bindParam(':tld', $tld, PDO::PARAM_STR);
                 $stmtTLD->execute();
                 $tldExists = $stmtTLD->fetchColumn();
@@ -125,23 +125,22 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                 }
                 
                 $query = "SELECT *,
-                    DATE_FORMAT(`registered_at`, '%Y-%m-%dT%H:%i:%sZ') AS `crdate`,
-                    DATE_FORMAT(`updated_at`, '%Y-%m-%dT%H:%i:%sZ') AS `update`,
-                    DATE_FORMAT(`expires_at`, '%Y-%m-%dT%H:%i:%sZ') AS `exdate`
-                    FROM service_domain WHERE sld = :domain AND tld = :tld";
+                    DATE_FORMAT(`crdate`, '%Y-%m-%dT%H:%i:%sZ') AS `crdate`,
+                    DATE_FORMAT(`lastupdate`, '%Y-%m-%dT%H:%i:%sZ') AS `update`,
+                    DATE_FORMAT(`exdate`, '%Y-%m-%dT%H:%i:%sZ') AS `exdate`
+                    FROM namingo_domain WHERE name = :domain";
                 $stmt = $pdo->prepare($query);
-                $stmt->bindParam(':domain', $domainName, PDO::PARAM_STR);
-                $stmt->bindParam(':tld', $tld, PDO::PARAM_STR);
+                $stmt->bindParam(':domain', $domain, PDO::PARAM_STR);
                 $stmt->execute();
 
                 if ($f = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    $metaQuery = "SELECT * FROM domain_meta WHERE domain_id = :domain_id";
+                    $metaQuery = "SELECT * FROM namingo_domain_meta WHERE domain_id = :domain_id";
                     $stmtMeta = $pdo->prepare($metaQuery);
                     $stmtMeta->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
                     $stmtMeta->execute();
                     $domainMeta = $stmtMeta->fetch(PDO::FETCH_ASSOC);
 
-                    $statusQuery = "SELECT status FROM domain_status WHERE domain_id = :domain_id";
+                    $statusQuery = "SELECT status FROM namingo_domain_status WHERE domain_id = :domain_id";
                     $stmtStatus = $pdo->prepare($statusQuery);
                     $stmtStatus->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
                     $stmtStatus->execute();
@@ -183,116 +182,164 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                     }
 
                     if ($privacy) {
-                    $res .= "\nRegistry Registrant ID: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Name: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Organization: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Street: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Street: REDACTED FOR PRIVACY"
-                        ."\nRegistrant City: REDACTED FOR PRIVACY"
-                        ."\nRegistrant State/Province: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Postal Code: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Country: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Phone: REDACTED FOR PRIVACY"
-                        ."\nRegistrant Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
+                        $res .= "\nRegistry Registrant ID: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Name: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Organization: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Street: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Street: REDACTED FOR PRIVACY"
+                            ."\nRegistrant City: REDACTED FOR PRIVACY"
+                            ."\nRegistrant State/Province: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Postal Code: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Country: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Phone: REDACTED FOR PRIVACY"
+                            ."\nRegistrant Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                    $res .= "\nRegistry Registrant ID: " . ($domainMeta['registrant_contact_id'] ?? '')
-                        ."\nRegistrant Name: ".$f['contact_first_name'].' '.$f['contact_last_name']
-                        ."\nRegistrant Organization: ".$f['contact_company']
-                        ."\nRegistrant Street: ".$f['contact_address1']
-                        ."\nRegistrant Street: ".$f['contact_address2']
-                        ."\nRegistrant City: ".$f['contact_city']
-                        ."\nRegistrant State/Province: ".$f['contact_state']
-                        ."\nRegistrant Postal Code: ".$f['contact_postcode']
-                        ."\nRegistrant Country: ".$f['contact_country']
-                        ."\nRegistrant Phone: ".$f['contact_phone_cc'].'.'.$f['contact_phone']
-                        ."\nRegistrant Email: ".$f['contact_email'];
+                        $query5 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
+                        FROM namingo_contact,namingo_contact_postalInfo WHERE namingo_contact.id=:registrant AND namingo_contact_postalInfo.contact_id=namingo_contact.id";
+                        $stmt5 = $pdo->prepare($query5);
+                        $stmt5->bindParam(':registrant', $f['registrant'], PDO::PARAM_INT);
+                        $stmt5->execute();
+
+                        $f2 = $stmt5->fetch(PDO::FETCH_ASSOC);
+
+                        $res .= "\nRegistry Registrant ID: " . ($f2['identifier'] ?? '')
+                            ."\nRegistrant Name: ".$f2['name']
+                            ."\nRegistrant Organization: ".$f2['org']
+                            ."\nRegistrant Street: ".$f2['street1']
+                            ."\nRegistrant Street: ".$f2['street2']
+                            ."\nRegistrant Street: ".$f2['street3']
+                            ."\nRegistrant City: ".$f2['city']
+                            ."\nRegistrant State/Province: ".$f2['sp']
+                            ."\nRegistrant Postal Code: ".$f2['pc']
+                            ."\nRegistrant Country: ".strtoupper($f2['cc'])
+                            ."\nRegistrant Phone: ".$f2['voice']
+                            ."\nRegistrant Fax: ".$f2['fax']
+                            ."\nRegistrant Email: ".$f2['email'];
                     }
 
                     if ($privacy) {
-                    $res .= "\nRegistry Admin ID: REDACTED FOR PRIVACY"
-                        ."\nAdmin Name: REDACTED FOR PRIVACY"
-                        ."\nAdmin Organization: REDACTED FOR PRIVACY"
-                        ."\nAdmin Street: REDACTED FOR PRIVACY"
-                        ."\nAdmin Street: REDACTED FOR PRIVACY"
-                        ."\nAdmin City: REDACTED FOR PRIVACY"
-                        ."\nAdmin State/Province: REDACTED FOR PRIVACY"
-                        ."\nAdmin Postal Code: REDACTED FOR PRIVACY"
-                        ."\nAdmin Country: REDACTED FOR PRIVACY"
-                        ."\nAdmin Phone: REDACTED FOR PRIVACY"
-                        ."\nAdmin Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
+                        $res .= "\nRegistry Admin ID: REDACTED FOR PRIVACY"
+                            ."\nAdmin Name: REDACTED FOR PRIVACY"
+                            ."\nAdmin Organization: REDACTED FOR PRIVACY"
+                            ."\nAdmin Street: REDACTED FOR PRIVACY"
+                            ."\nAdmin Street: REDACTED FOR PRIVACY"
+                            ."\nAdmin City: REDACTED FOR PRIVACY"
+                            ."\nAdmin State/Province: REDACTED FOR PRIVACY"
+                            ."\nAdmin Postal Code: REDACTED FOR PRIVACY"
+                            ."\nAdmin Country: REDACTED FOR PRIVACY"
+                            ."\nAdmin Phone: REDACTED FOR PRIVACY"
+                            ."\nAdmin Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                    $res .= "\nRegistry Admin ID: " . ($domainMeta['admin_contact_id'] ?? '')
-                        ."\nAdmin Name: ".$f['contact_first_name'].' '.$f['contact_last_name']
-                        ."\nAdmin Organization: ".$f['contact_company']
-                        ."\nAdmin Street: ".$f['contact_address1']
-                        ."\nAdmin Street: ".$f['contact_address2']
-                        ."\nAdmin City: ".$f['contact_city']
-                        ."\nAdmin State/Province: ".$f['contact_state']
-                        ."\nAdmin Postal Code: ".$f['contact_postcode']
-                        ."\nAdmin Country: ".$f['contact_country']
-                        ."\nAdmin Phone: ".$f['contact_phone_cc'].'.'.$f['contact_phone']
-                        ."\nAdmin Email: ".$f['contact_email'];
+                        $query6 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
+                        FROM namingo_domain_contact_map,namingo_contact,namingo_contact_postalInfo WHERE namingo_domain_contact_map.domain_id=:domain_id AND namingo_domain_contact_map.type='admin' AND namingo_domain_contact_map.contact_id=namingo_contact.id AND namingo_domain_contact_map.contact_id=namingo_contact_postalInfo.contact_id";
+                        $stmt6 = $pdo->prepare($query6);
+                        $stmt6->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
+                        $stmt6->execute();
+
+                        $f2 = $stmt6->fetch(PDO::FETCH_ASSOC);
+                        
+                        $res .= "\nRegistry Admin ID: " . ($f2['identifier'] ?? '')
+                            ."\nAdmin Name: ".$f2['name']
+                            ."\nAdmin Organization: ".$f2['org']
+                            ."\nAdmin Street: ".$f2['street1']
+                            ."\nAdmin Street: ".$f2['street2']
+                            ."\nAdmin Street: ".$f2['street3']
+                            ."\nAdmin City: ".$f2['city']
+                            ."\nAdmin State/Province: ".$f2['sp']
+                            ."\nAdmin Postal Code: ".$f2['pc']
+                            ."\nAdmin Country: ".strtoupper($f2['cc'])
+                            ."\nAdmin Phone: ".$f2['voice']
+                            ."\nAdmin Fax: ".$f2['fax']
+                            ."\nAdmin Email: ".$f2['email'];
                     }
 
                     if ($privacy) {
-                    $res .= "\nRegistry Billing ID: REDACTED FOR PRIVACY"
-                        ."\nBilling Name: REDACTED FOR PRIVACY"
-                        ."\nBilling Organization: REDACTED FOR PRIVACY"
-                        ."\nBilling Street: REDACTED FOR PRIVACY"
-                        ."\nBilling Street: REDACTED FOR PRIVACY"
-                        ."\nBilling City: REDACTED FOR PRIVACY"
-                        ."\nBilling State/Province: REDACTED FOR PRIVACY"
-                        ."\nBilling Postal Code: REDACTED FOR PRIVACY"
-                        ."\nBilling Country: REDACTED FOR PRIVACY"
-                        ."\nBilling Phone: REDACTED FOR PRIVACY"
-                        ."\nBilling Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
+                        $res .= "\nRegistry Billing ID: REDACTED FOR PRIVACY"
+                            ."\nBilling Name: REDACTED FOR PRIVACY"
+                            ."\nBilling Organization: REDACTED FOR PRIVACY"
+                            ."\nBilling Street: REDACTED FOR PRIVACY"
+                            ."\nBilling Street: REDACTED FOR PRIVACY"
+                            ."\nBilling City: REDACTED FOR PRIVACY"
+                            ."\nBilling State/Province: REDACTED FOR PRIVACY"
+                            ."\nBilling Postal Code: REDACTED FOR PRIVACY"
+                            ."\nBilling Country: REDACTED FOR PRIVACY"
+                            ."\nBilling Phone: REDACTED FOR PRIVACY"
+                            ."\nBilling Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                    $res .= "\nRegistry Billing ID: " . ($domainMeta['billing_contact_id'] ?? '')
-                        ."\nBilling Name: ".$f['contact_first_name'].' '.$f['contact_last_name']
-                        ."\nBilling Organization: ".$f['contact_company']
-                        ."\nBilling Street: ".$f['contact_address1']
-                        ."\nBilling Street: ".$f['contact_address2']
-                        ."\nBilling City: ".$f['contact_city']
-                        ."\nBilling State/Province: ".$f['contact_state']
-                        ."\nBilling Postal Code: ".$f['contact_postcode']
-                        ."\nBilling Country: ".$f['contact_country']
-                        ."\nBilling Phone: ".$f['contact_phone_cc'].'.'.$f['contact_phone']
-                        ."\nBilling Email: ".$f['contact_email'];
+                        $query7 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
+                        FROM namingo_domain_contact_map,namingo_contact,namingo_contact_postalInfo WHERE namingo_domain_contact_map.domain_id=:domain_id AND namingo_domain_contact_map.type='billing' AND namingo_domain_contact_map.contact_id=namingo_contact.id AND namingo_domain_contact_map.contact_id=namingo_contact_postalInfo.contact_id";
+                        $stmt7 = $pdo->prepare($query7);
+                        $stmt7->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
+                        $stmt7->execute();
+
+                        $f2 = $stmt7->fetch(PDO::FETCH_ASSOC);
+                        
+                        $res .= "\nRegistry Billing ID: " . ($f2['identifier'] ?? '')
+                            ."\nBilling Name: ".$f2['name']
+                            ."\nBilling Organization: ".$f2['org']
+                            ."\nBilling Street: ".$f2['street1']
+                            ."\nBilling Street: ".$f2['street2']
+                            ."\nBilling Street: ".$f2['street3']
+                            ."\nBilling City: ".$f2['city']
+                            ."\nBilling State/Province: ".$f2['sp']
+                            ."\nBilling Postal Code: ".$f2['pc']
+                            ."\nBilling Country: ".strtoupper($f2['cc'])
+                            ."\nBilling Phone: ".$f2['voice']
+                            ."\nBilling Fax: ".$f2['fax']
+                            ."\nBilling Email: ".$f2['email'];
                     }
 
                     if ($privacy) {
-                    $res .= "\nRegistry Tech ID: REDACTED FOR PRIVACY"
-                        ."\nTech Name: REDACTED FOR PRIVACY"
-                        ."\nTech Organization: REDACTED FOR PRIVACY"
-                        ."\nTech Street: REDACTED FOR PRIVACY"
-                        ."\nTech Street: REDACTED FOR PRIVACY"
-                        ."\nTech City: REDACTED FOR PRIVACY"
-                        ."\nTech State/Province: REDACTED FOR PRIVACY"
-                        ."\nTech Postal Code: REDACTED FOR PRIVACY"
-                        ."\nTech Country: REDACTED FOR PRIVACY"
-                        ."\nTech Phone: REDACTED FOR PRIVACY"
-                        ."\nTech Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
+                        $res .= "\nRegistry Tech ID: REDACTED FOR PRIVACY"
+                            ."\nTech Name: REDACTED FOR PRIVACY"
+                            ."\nTech Organization: REDACTED FOR PRIVACY"
+                            ."\nTech Street: REDACTED FOR PRIVACY"
+                            ."\nTech Street: REDACTED FOR PRIVACY"
+                            ."\nTech City: REDACTED FOR PRIVACY"
+                            ."\nTech State/Province: REDACTED FOR PRIVACY"
+                            ."\nTech Postal Code: REDACTED FOR PRIVACY"
+                            ."\nTech Country: REDACTED FOR PRIVACY"
+                            ."\nTech Phone: REDACTED FOR PRIVACY"
+                            ."\nTech Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                    $res .= "\nRegistry Tech ID: " . ($domainMeta['tech_contact_id'] ?? '')
-                        ."\nTech Name: ".$f['contact_first_name'].' '.$f['contact_last_name']
-                        ."\nTech Organization: ".$f['contact_company']
-                        ."\nTech Street: ".$f['contact_address1']
-                        ."\nTech Street: ".$f['contact_address2']
-                        ."\nTech City: ".$f['contact_city']
-                        ."\nTech State/Province: ".$f['contact_state']
-                        ."\nTech Postal Code: ".$f['contact_postcode']
-                        ."\nTech Country: ".$f['contact_country']
-                        ."\nTech Phone: ".$f['contact_phone_cc'].'.'.$f['contact_phone']
-                        ."\nTech Email: ".$f['contact_email'];
-                    }
+                        $query8 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
+                        FROM namingo_domain_contact_map,namingo_contact,namingo_contact_postalInfo WHERE namingo_domain_contact_map.domain_id=:domain_id AND namingo_domain_contact_map.type='tech' AND namingo_domain_contact_map.contact_id=namingo_contact.id AND namingo_domain_contact_map.contact_id=namingo_contact_postalInfo.contact_id";
+                        $stmt8 = $pdo->prepare($query8);
+                        $stmt8->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
+                        $stmt8->execute();
 
-                    $res .= "\nName Server: ".$f['ns1'];
-                    $res .= "\nName Server: ".$f['ns2'];
-                    $res .= "\nName Server: ".$f['ns3'];
-                    $res .= "\nName Server: ".$f['ns4'];
+                        $f2 = $stmt8->fetch(PDO::FETCH_ASSOC);
+                        
+                        $res .= "\nRegistry Tech ID: " . ($f2['identifier'] ?? '')
+                            ."\nTech Name: ".$f2['name']
+                            ."\nTech Organization: ".$f2['org']
+                            ."\nTech Street: ".$f2['street1']
+                            ."\nTech Street: ".$f2['street2']
+                            ."\nTech Street: ".$f2['street3']
+                            ."\nTech City: ".$f2['city']
+                            ."\nTech State/Province: ".$f2['sp']
+                            ."\nTech Postal Code: ".$f2['pc']
+                            ."\nTech Country: ".strtoupper($f2['cc'])
+                            ."\nTech Phone: ".$f2['voice']
+                            ."\nTech Fax: ".$f2['fax']
+                            ."\nTech Email: ".$f2['email'];
+                    }
+                    
+                    $query9 = "SELECT name FROM namingo_domain_host_map,namingo_host WHERE namingo_domain_host_map.domain_id = :domain_id AND namingo_domain_host_map.host_id = namingo_host.id";
+                    $stmt9 = $pdo->prepare($query9);
+                    $stmt9->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
+                    $stmt9->execute();
+
+                    $counter = 0;
+                    while ($counter < 13) {
+                        $f2 = $stmt9->fetch(PDO::FETCH_ASSOC);
+                        if ($f2 === false) break; // Break if there are no more rows
+                         $res .= "\nName Server: ".$f2['name'];
+                         $counter++;
+                    }
 
                     // Query to check if DNSSEC data exists for the domain
-                    $sqlDnssec = "SELECT COUNT(*) FROM domain_dnssec WHERE domain_id = :domain_id";
+                    $sqlDnssec = "SELECT COUNT(*) FROM namingo_domain_dnssec WHERE domain_id = :domain_id";
                     $stmtDnssec = $pdo->prepare($sqlDnssec);
                     $stmtDnssec->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
                     $stmtDnssec->execute();

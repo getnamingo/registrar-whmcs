@@ -13,7 +13,7 @@ add-apt-repository ppa:ondrej/php -y
 apt update
 apt install php8.1 php8.1-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl,swoole} -y
 apt install mariadb-server -y
-apt install composer certbot python3-certbot-apache -y
+apt install composer whois certbot python3-certbot-apache -y
 ```
 
 ## 2. Install ionCube Loader:
