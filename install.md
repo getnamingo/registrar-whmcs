@@ -11,9 +11,9 @@ systemctl start apache2
 apt install software-properties-common -y
 add-apt-repository ppa:ondrej/php -y
 apt update
-apt install php8.1 php8.1-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl} -y
+apt install php8.1 php8.1-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl,swoole} -y
 apt install mariadb-server -y
-apt install certbot python3-certbot-apache -y
+apt install composer certbot python3-certbot-apache -y
 ```
 
 ## 2. Install ionCube Loader:
@@ -159,6 +159,7 @@ Clone the repository to your system:
 
 ```bash
 git clone https://github.com/getnamingo/registrar-whmcs /opt/registrar
+mkdir /var/log/namingo
 ```
 
 ## 7. ICANN Registrar Accreditation Module:
