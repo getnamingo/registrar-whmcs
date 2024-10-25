@@ -161,7 +161,18 @@ Clone the repository to your system:
 git clone https://github.com/getnamingo/registrar-whmcs /opt/registrar
 ```
 
-## 7. Setup WHOIS:
+## 7. ICANN Registrar Accreditation Module:
+
+```bash
+git clone https://github.com/getnamingo/whmcs-registrar
+mv whmcs-registrar/whmcs_registrar /var/www/html/whmcs/modules/addons
+chown -R www-data:www-data /var/www/html/whmcs/modules/addons/whmcs_registrar
+chmod -R 755 /var/www/html/whmcs/modules/addons/whmcs_registrar
+```
+
+- Go to Settings > Apps & Integrations in the admin panel, search for "ICANN Registrar" and then activate "ICANN Registrar Accreditation".
+
+## 8. Setup WHOIS:
 
 ```bash
 cd /opt/registrar/whois
@@ -181,7 +192,7 @@ systemctl enable whois.service
 
 After that you can manage WHOIS via systemctl as any other service.
 
-## 8. Setup RDAP:
+## 9. Setup RDAP:
 
 ```bash
 cd /opt/registrar/rdap
@@ -201,7 +212,7 @@ systemctl enable rdap.service
 
 After that you can manage RDAP via systemctl as any other service.
 
-## 9. Setup Automation Scripts:
+## 10. Setup Automation Scripts:
 
 ```bash
 cd /opt/registrar/automation
@@ -229,7 +240,7 @@ Once you have successfully configured all automation scripts, you are ready to i
 * * * * * /usr/bin/php8.2 /opt/registrar/automation/cron.php 1>> /dev/null 2>&1
 ```
 
-## 10. Domain Contact Verification:
+## 11. Domain Contact Verification:
 
 ```bash
 git clone https://github.com/getnamingo/whmcs-validation
@@ -238,7 +249,7 @@ mv whmcs-validation/Validation /var/www/modules/
 
 - Go to Extensions > Overview in the admin panel and activate "Domain Contact Verification".
 
-## 11. TMCH Claims Notice Support:
+## 12. TMCH Claims Notice Support:
 
 ```bash
 git clone https://github.com/getnamingo/whmcs-tmch
@@ -251,7 +262,7 @@ chmod -R 755 /var/www/html/whmcs/modules/addons/tmch
 
 - Still this needs to be integrated with your workflow.
 
-## 12. WHOIS & RDAP Client:
+## 13. WHOIS & RDAP Client:
 
 ```bash
 git clone https://github.com/getnamingo/whmcs-whois
@@ -264,24 +275,62 @@ chmod -R 755 /var/www/html/whmcs/modules/addons/whois
 
 - Edit the `/var/www/html/whmcs/modules/addons/whois/check.php` file and set your WHOIS and RDAP server URLs by replacing the placeholder values with your actual server addresses.
 
-## 13. ICANN Registrar Accreditation Module:
-
-```bash
-git clone https://github.com/getnamingo/whmcs-registrar
-mv whmcs-registrar/whmcs_registrar /var/www/html/whmcs/modules/addons
-chown -R www-data:www-data /var/www/html/whmcs/modules/addons/whmcs_registrar
-chmod -R 755 /var/www/html/whmcs/modules/addons/whmcs_registrar
-```
-
-- Go to Settings > Apps & Integrations in the admin panel, search for "ICANN Registrar" and then activate "ICANN Registrar Accreditation".
-
 ## 14. Installing WHMCS EPP-RFC Extensions:
 
-For each registry you support, you will need to install a WHMCS EPP-RFC extension.
+For every registry backend your registrar wants to support, you need a separate installation of the WHMCS EPP extension. Each module can handle one or more TLDs that share the same configuration details.
 
-Navigate to https://github.com/getnamingo/registrar-whmcs-epp-rfc and follow the installation instructions specific to each registry.
+To set up a TLD using the standard EPP protocol, follow these steps:
 
-To execute the required OT&E tests by various registries, you can use our Tembo client at https://github.com/getpinga/tembo
+```bash
+git clone https://github.com/getnamingo/registrar-whmcs-epp-rfc
+mv registrar-whmcs-epp-rfc /var/www/html/whmcs/modules/registrars/eppr
+```
+
+After this, place the `key.pem` and `cert.pem` files specific to the registry in the eppr directory. You can do this with:
+
+```bash
+cp /path/to/key.pem /var/www/html/whmcs/modules/registrars/eppr/
+cp /path/to/cert.pem /var/www/html/whmcs/modules/registrars/eppr/
+```
+
+Set the correct permissions:
+
+```bash
+chown -R www-data:www-data /var/www/html/whmcs/modules/registrars/eppr
+chmod -R 755 /var/www/html/whmcs/modules/registrars/eppr
+```
+
+- Rename the `eppr` directory to match your registry's name, for example, `namingo`.
+
+- Change all references from `eppr` to your registry's name:
+
+  - Rename `eppr.php` to `namingo.php`.
+  
+  - Replace all `eppr_` prefixes with `namingo_` in the PHP file.
+  
+  - In `whmcs.json`, replace `eppr` with `namingo` and adjust the "EPP Registry (ICANN Registrar Edition)" description to your registry name, such as "Namingo EPP".
+
+- Go to Settings > Apps & Integrations in the admin panel, search for "Namingo EPP" and then activate "Namingo EPP".
+
+- Configure from Configuration -> System Settings -> Domain Registrars.
+
+- Add a new TLD using Configuration -> System Settings -> Domain Pricing.
+
+- Create a `whois.json` file in `/var/www/html/whmcs/resources/domains` and add the following:
+
+```bash
+[
+    {
+        "extensions": ".yourtld",
+        "uri": "socket://your.whois.url",
+        "available": "NOT FOUND"
+    }
+]
+```
+
+### Executing OT&E Tests
+
+To execute the required OT&E tests by various registries, you can use our Tembo client. You can find it at [https://github.com/getpinga/tembo](https://github.com/getpinga/tembo).
 
 ## 15. Further Settings:
 
