@@ -1,5 +1,11 @@
 # Installation Guide on Ubuntu 24.04
 
+This guide is for setting up **WHMCS 8.11** with **PHP 8.2** on Ubuntu 24.04.
+
+> **Note:** If you are using **WHMCS 8.10**, please replace all references to **8.2** with **8.1** throughout this guide.  
+> WHMCS 8.10 is optimized for PHP 8.1, while WHMCS 8.11 is compatible with PHP 8.2. Using the recommended PHP version for your WHMCS version ensures better compatibility and performance.
+
+
 ## 1. Install the required packages:
 
 ```bash
@@ -11,7 +17,7 @@ systemctl start apache2
 apt install software-properties-common -y
 add-apt-repository ppa:ondrej/php -y
 apt update
-apt install php8.1 php8.1-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl,swoole} -y
+apt install php8.2 php8.2-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl,swoole} -y
 apt install mariadb-server -y
 apt install composer whois certbot python3-certbot-apache -y
 ```
@@ -30,18 +36,18 @@ Determine the PHP extension directory where the ionCube loader files need to be 
 extension_dir => /usr/lib/php/20210902 => /usr/lib/php/20210902
 ```
 
-Make a note of the directory path (e.g., /usr/lib/php/20210902) and copy the appropriate ionCube loader for your PHP version to the PHP extensions directory by running `cp /tmp/ioncube/ioncube_loader_lin_8.1.so /usr/lib/php/20210902/`
+Make a note of the directory path (e.g., /usr/lib/php/20210902) and copy the appropriate ionCube loader for your PHP version to the PHP extensions directory by running `cp /tmp/ioncube/ioncube_loader_lin_8.2.so /usr/lib/php/20210902/`
 
 You need to edit the PHP configuration file to include ionCube:
 
 ```bash
-nano /etc/php/8.1/apache2/php.ini
+nano /etc/php/8.2/apache2/php.ini
 ```
 
 Add the following line to the top of the file to enable ionCube:
 
 ```bash
-zend_extension = /usr/lib/php/20210902/ioncube_loader_lin_8.1.so
+zend_extension = /usr/lib/php/20210902/ioncube_loader_lin_8.2.so
 ```
 
 ```bash
