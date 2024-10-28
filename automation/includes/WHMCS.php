@@ -24,8 +24,8 @@ class WHMCS
 
     public function generateFull(): void
     {
-        // Query to get id, registrant, name, crdate, exdate from namingo_domain
-        $sqlDomain = "SELECT d.id, d.registrant, d.name, DATE_FORMAT(d.crdate, '%Y-%m-%dT%H:%i:%sZ') AS crdate, DATE_FORMAT(d.exdate, '%Y-%m-%dT%H:%i:%sZ') AS exdate FROM namingo_domain d";
+        // Query to get id, registrant, admin, tech, billing, name, crdate, exdate from namingo_domain
+        $sqlDomain = "SELECT d.id, d.registrant, d.admin, d.tech, d.billing, d.name, DATE_FORMAT(d.crdate, '%Y-%m-%dT%H:%i:%sZ') AS crdate, DATE_FORMAT(d.exdate, '%Y-%m-%dT%H:%i:%sZ') AS exdate FROM namingo_domain d";
         $stmtDomain = $this->pdo->prepare($sqlDomain);
         $stmtDomain->execute();
         $domains = $stmtDomain->fetchAll(\PDO::FETCH_ASSOC);
@@ -49,62 +49,36 @@ class WHMCS
 
             // Prepare to store contacts by type, including the identifier
             $domain['contacts'] = [
-                'admin' => null,
-                'tech' => null,
-                'billing' => null,
+                'registrant' => $domain['registrant'] ?? null,
+                'admin' => $domain['admin'] ?? null,
+                'tech' => $domain['tech'] ?? null,
+                'billing' => $domain['billing'] ?? null,
+            ];
+            
+            // Collect contact IDs
+            $contactIds = array_filter([$domain['registrant'], $domain['admin'], $domain['tech'], $domain['billing']]);
+
+            // Prepare the SQL to fetch identifiers for all contact IDs in one query
+            $sqlContacts = "SELECT id, identifier FROM namingo_contact WHERE id IN (" . implode(',', array_fill(0, count($contactIds), '?')) . ")";
+            $stmtContacts = $this->pdo->prepare($sqlContacts);
+            $stmtContacts->execute($contactIds);
+
+            // Map the identifiers to contact IDs
+            $identifiers = [];
+            while ($row = $stmtContacts->fetch(\PDO::FETCH_ASSOC)) {
+                $identifiers[$row['id']] = $row['identifier'];
+            }
+
+            // Replace the contact IDs with identifiers
+            $domain['contacts'] = [
+                'registrant' => $identifiers[$domain['registrant']] ?? null,
+                'admin' => $identifiers[$domain['admin']] ?? null,
+                'tech' => $identifiers[$domain['tech']] ?? null,
+                'billing' => $identifiers[$domain['billing']] ?? null,
             ];
 
-            // Get contact_id/type pairs from namingo_domain_contact_map
-            $sqlContacts = "SELECT contact_id, type FROM namingo_domain_contact_map WHERE domain_id = :domain_id";
-            $stmtContacts = $this->pdo->prepare($sqlContacts);
-            $stmtContacts->bindParam(':domain_id', $domainId, \PDO::PARAM_INT);
-            $stmtContacts->execute();
-            $contacts = $stmtContacts->fetchAll(\PDO::FETCH_ASSOC);
-
-            // Assign the contact IDs based on their type and prepare to fetch identifiers
-            $contactIds = [$domain['registrant']];
-            foreach ($contacts as $contact) {
-                $type = strtolower($contact['type']);
-                if (in_array($type, ['admin', 'tech', 'billing'])) {
-                    $domain['contacts'][$type] = $contact['contact_id'];
-                    $contactIds[] = $contact['contact_id'];
-                }
-            }
-
-            // Ensure we only have unique contact IDs
-            $contactIds = array_unique($contactIds);
-
-            // Prepare query to get identifiers from namingo_contact for registrant and other contact_ids
-            if (!empty($contactIds)) {
-                $placeholders = implode(',', array_fill(0, count($contactIds), '?'));
-                $sqlIdentifiers = "SELECT id, identifier FROM namingo_contact WHERE id IN ($placeholders)";
-                $stmtIdentifiers = $this->pdo->prepare($sqlIdentifiers);
-
-                // Execute with direct array of contact IDs
-                $stmtIdentifiers->execute($contactIds);
-                $identifiers = $stmtIdentifiers->fetchAll(\PDO::FETCH_ASSOC);
-
-                // Map identifiers to contact types
-                $identifierMap = [];
-                foreach ($identifiers as $identifier) {
-                    $identifierMap[$identifier['id']] = $identifier['identifier'];
-                }
-
-                // Replace contact IDs with identifiers in the contacts array
-                foreach ($domain['contacts'] as $type => $contactId) {
-                    if ($contactId && isset($identifierMap[$contactId])) {
-                        $domain['contacts'][$type] = $identifierMap[$contactId];
-                    }
-                }
-
-                // Also map the registrant to its identifier
-                if (isset($identifierMap[$domain['registrant']])) {
-                    $domain['registrant'] = $identifierMap[$domain['registrant']];
-                }
-
-                // Add to the domains array for CSV writing
-                $this->writeToCsv($domain);
-            }
+            // Add to the domains array for CSV writing
+            $this->writeToCsv($domain);
         }
     }
 
@@ -121,7 +95,7 @@ class WHMCS
         $nextDueDate = ''; // Assuming there is no `nextduedate` from your current data
 
         // Get handles for the CSV, use empty string if they do not exist
-        $rtHandle = $domain['registrant'] ?? '';
+        $rtHandle = $domain['contacts']['registrant'] ?? '';
         $tcHandle = $domain['contacts']['tech'] ?? '';
         $acHandle = $domain['contacts']['admin'] ?? '';
         $bcHandle = $domain['contacts']['billing'] ?? '';
@@ -144,20 +118,7 @@ class WHMCS
     {
         // Query the database to get data from both tables
         $sql = "
-            SELECT 
-                nc.id AS aid, 
-                nc.identifier, 
-                nc.voice AS phone, 
-                nc.fax, 
-                nc.email, 
-                ncp.name, 
-                ncp.street1 AS address, 
-                ncp.city, 
-                ncp.sp AS state, 
-                ncp.pc AS postcode, 
-                ncp.cc AS country
-            FROM namingo_contact nc
-            LEFT JOIN namingo_contact_postalInfo ncp ON nc.id = ncp.contact_id
+            SELECT identifier, voice AS phone, fax, email, name, street1 AS address, city, sp AS state, pc AS postcode, cc AS country FROM namingo_contact
         ";
         
         $stmt = $this->pdo->prepare($sql);

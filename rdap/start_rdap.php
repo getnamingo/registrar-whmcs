@@ -247,58 +247,38 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
             return;
         }
 
-        $metaQuery = "SELECT * FROM namingo_domain_meta WHERE domain_id = :domain_id";
-        $stmtMeta = $pdo->prepare($metaQuery);
-        $stmtMeta->bindParam(':domain_id', $domainDetails['id'], PDO::PARAM_INT);
-        $stmtMeta->execute();
-        $domainMeta = $stmtMeta->fetch(PDO::FETCH_ASSOC);
-        
         // Query 4: Get registrant details
-        $stmt4 = $pdo->prepare("SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.voice_x,namingo_contact.fax,namingo_contact.fax_x,namingo_contact.email,namingo_contact_postalInfo.type FROM namingo_contact,namingo_contact_postalInfo WHERE namingo_contact.id=:registrant AND namingo_contact_postalInfo.contact_id=namingo_contact.id");
+        $stmt4 = $pdo->prepare("SELECT id,identifier,name,org,street1,street2,street3,city,sp,pc,cc,voice,fax,email FROM namingo_contact WHERE id=:registrant");
         $stmt4->bindParam(':registrant', $domainDetails['registrant'], PDO::PARAM_INT);
         $stmt4->execute();
         $registrantDetails = $stmt4->fetch(PDO::FETCH_ASSOC);
 
-        // Query 5: Get admin, billing and tech contacts        
-        $stmtMap = $pdo->prepare("SELECT contact_id, type FROM namingo_domain_contact_map WHERE domain_id = :domain_id");
-        $stmtMap->bindParam(':domain_id', $domainDetails['id'], PDO::PARAM_INT);
-        $stmtMap->execute();
-        $contactMap = $stmtMap->fetchAll(PDO::FETCH_ASSOC);
-        
-        $adminDetails = [];
-        $techDetails = [];
-        $billingDetails = [];
+        // Query 5: Get admin, billing and tech contacts  
+        $stmt5a = $pdo->prepare("SELECT id,identifier,name,org,street1,street2,street3,city,sp,pc,cc,voice,fax,email FROM namingo_contact WHERE id=:admin");
+        $stmt5a->bindParam(':admin', $domainDetails['admin'], PDO::PARAM_INT);
+        $stmt5a->execute();
+        $adminDetails = $stmt5a->fetch(PDO::FETCH_ASSOC);
 
-        foreach ($contactMap as $map) {
-            $stmtDetails = $pdo->prepare("SELECT namingo_contact.id, namingo_contact.identifier, namingo_contact_postalInfo.name, namingo_contact_postalInfo.org, namingo_contact_postalInfo.street1, namingo_contact_postalInfo.street2, namingo_contact_postalInfo.street3, namingo_contact_postalInfo.city, namingo_contact_postalInfo.sp, namingo_contact_postalInfo.pc, namingo_contact_postalInfo.cc, namingo_contact.voice, namingo_contact.voice_x, namingo_contact.fax, namingo_contact.fax_x, namingo_contact.email,namingo_contact_postalInfo.type FROM namingo_contact, namingo_contact_postalInfo WHERE namingo_contact.id = :contact_id AND namingo_contact_postalInfo.contact_id = namingo_contact.id");
-            $stmtDetails->bindParam(':contact_id', $map['contact_id'], PDO::PARAM_INT);
-            $stmtDetails->execute();
-    
-            $contactDetails = $stmtDetails->fetch(PDO::FETCH_ASSOC);
-    
-            switch ($map['type']) {
-                case 'admin':
-                    $adminDetails[] = $contactDetails;
-                    break;
-                case 'tech':
-                    $techDetails[] = $contactDetails;
-                    break;
-                case 'billing':
-                    $billingDetails[] = $contactDetails;
-                    break;
-            }
-        }
+        $stmt5b = $pdo->prepare("SELECT id,identifier,name,org,street1,street2,street3,city,sp,pc,cc,voice,fax,email FROM namingo_contact WHERE id=:tech");
+        $stmt5b->bindParam(':tech', $domainDetails['tech'], PDO::PARAM_INT);
+        $stmt5b->execute();
+        $techDetails = $stmt5b->fetch(PDO::FETCH_ASSOC);
+
+        $stmt5c = $pdo->prepare("SELECT id,identifier,name,org,street1,street2,street3,city,sp,pc,cc,voice,fax,email FROM namingo_contact WHERE id=:billing");
+        $stmt5c->bindParam(':billing', $domainDetails['billing'], PDO::PARAM_INT);
+        $stmt5c->execute();
+        $billingDetails = $stmt5c->fetch(PDO::FETCH_ASSOC);
 
         // Query 6: Get nameservers
-        $stmt6 = $pdo->prepare("
-            SELECT namingo_host.name, namingo_host.id as host_id 
-            FROM namingo_domain_host_map, namingo_host 
-            WHERE namingo_domain_host_map.domain_id = :domain_id 
-            AND namingo_domain_host_map.host_id = namingo_host.id
-        ");
-        $stmt6->bindParam(':domain_id', $domainDetails['id'], PDO::PARAM_INT);
-        $stmt6->execute();
-        $nameservers = $stmt6->fetchAll(PDO::FETCH_ASSOC);
+        $nameservers = [];
+        for ($i = 1; $i <= 5; $i++) {
+            if (!empty($domainDetails["ns$i"])) {
+                $nameservers[] = [
+                    'name' => $domainDetails["ns$i"],
+                    'host_id' => $i // Use the index as a stand-in for host_id
+                ];
+            }
+        }
 
         $statusQuery = "SELECT status FROM namingo_domain_status WHERE domain_id = :domain_id";
         $stmtStatus = $pdo->prepare($statusQuery);
@@ -327,7 +307,6 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
         }
         
         // Construct the RDAP response in JSON format
-        $domainDetails['registrant_contact_id'] = $domainMeta['registrant_contact_id'];
         $rdapResponse = [
             'rdapConformance' => [
                 'rdap_level_0',
@@ -382,15 +361,15 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
                 [
                     mapContactToVCard($registrantDetails, 'registrant', $c)
                 ],
-                array_map(function ($contact) use ($c) {
-                    return mapContactToVCard($contact, 'admin', $c);
-                }, $adminDetails),
-                array_map(function ($contact) use ($c) {
-                    return mapContactToVCard($contact, 'tech', $c);
-                }, $techDetails),
-                array_map(function ($contact) use ($c) {
-                    return mapContactToVCard($contact, 'billing', $c);
-                }, $billingDetails)
+                [
+                    mapContactToVCard($adminDetails, 'admin', $c)
+                ],
+                [
+                    mapContactToVCard($techDetails, 'tech', $c)
+                ],
+                [
+                    mapContactToVCard($billingDetails, 'billing', $c)
+                ]
             ),
             'events' => $events,
             'handle' => $domainDetails['id'] . '',
@@ -410,7 +389,7 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
             'nameservers' => array_map(function ($nameserverDetails) use ($c) {
                 return [
                     'objectClassName' => 'nameserver',
-                    'handle' => 'H' . $nameserverDetails['host_id'],
+                    'handle' => 'H' . $nameserverDetails['name'],
                     'ldhName' => $nameserverDetails['name'],
                     'links' => [
                         [

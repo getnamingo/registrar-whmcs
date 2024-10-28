@@ -36,32 +36,21 @@ function updateExpiredDomainNameservers($pdo) {
             $ns1 = $config['ns1'];
             $ns2 = $config['ns2'];
 
-            // Prepare the SQL to check if ns1 exists
-            $sqlCheck = "SELECT id FROM namingo_host WHERE name = :name";
-            $stmtCheck = $pdo->prepare($sqlCheck);
+            // Prepare the SQL to update ns1, ns2, and set ns3 to ns5 to NULL
+            $sqlUpdate = "
+                UPDATE namingo_domain 
+                SET ns1 = :ns1, ns2 = :ns2, ns3 = NULL, ns4 = NULL, ns5 = NULL 
+                WHERE id = :domain_id
+            ";
+            $stmtUpdate = $pdo->prepare($sqlUpdate);
 
-            // Get or insert ns1 and ns2
-            $host_id_1 = getOrInsertHost($pdo, $ns1);
-            $host_id_2 = getOrInsertHost($pdo, $ns2);
+            // Bind parameters for ns1, ns2, and domain_id
+            $stmtUpdate->bindParam(':ns1', $ns1);
+            $stmtUpdate->bindParam(':ns2', $ns2);
+            $stmtUpdate->bindParam(':domain_id', $domain['id'], PDO::PARAM_INT);
 
-            // Remove existing mappings from namingo_domain_host_map
-            $sqlDelete = "DELETE FROM namingo_domain_host_map WHERE domain_id = :domain_id";
-            $stmtDelete = $pdo->prepare($sqlDelete);
-            $stmtDelete->bindParam(':domain_id', $domain['id']);
-            $stmtDelete->execute();
-
-            // Insert new mappings for host_id_1 and host_id_2
-            $sqlInsertMap = "INSERT INTO namingo_domain_host_map (domain_id, host_id) VALUES (:domain_id, :host_id)";
-            $stmtInsertMap = $pdo->prepare($sqlInsertMap);
-
-            // Insert mapping for ns1
-            $stmtInsertMap->bindParam(':domain_id', $domain['id']);
-            $stmtInsertMap->bindParam(':host_id', $host_id_1);
-            $stmtInsertMap->execute();
-
-            // Insert mapping for ns2
-            $stmtInsertMap->bindParam(':host_id', $host_id_2);
-            $stmtInsertMap->execute();
+            // Execute the update
+            $stmtUpdate->execute();
 
             // Send EPP update to registry
             $epp = connectEpp("generic", $config);

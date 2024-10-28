@@ -43,7 +43,7 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Loop through domains and send reminder email and EPP command to update nameservers
 foreach ($rows as $row) {
-  if ($row['custom_2'] == 0) {
+  if ($row['validation'] == 0) {
       $domain_name = $row['name'];
       $registrant_email = $row['email'];
       $token = $row['validation_log'];

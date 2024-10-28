@@ -101,32 +101,3 @@ function setupLogger($logFilePath, $channelName = 'app') {
 
     return $log;
 }
-
-/**
- * Get or insert a nameserver and return the host_id.
- *
- * @param PDO $pdo Database connection
- * @param string $ns The nameserver to check or insert
- * @return int The host_id of the nameserver
- */
-function getOrInsertHost($pdo, $ns) {
-    // Prepare the SQL to check if ns exists
-    $sqlCheck = "SELECT id FROM namingo_host WHERE name = :name";
-    $stmtCheck = $pdo->prepare($sqlCheck);
-    
-    // Check if the nameserver exists
-    $stmtCheck->bindParam(':name', $ns);
-    $stmtCheck->execute();
-    $host = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-    
-    if ($host) {
-        return $host['id'];
-    } else {
-        // Insert new nameserver if not found
-        $sqlInsert = "INSERT INTO namingo_host (name, clid, crid, crdate) VALUES (:name, 0, 0, NOW(3))";
-        $stmtInsert = $pdo->prepare($sqlInsert);
-        $stmtInsert->bindParam(':name', $ns);
-        $stmtInsert->execute();
-        return $pdo->lastInsertId();
-    }
-}

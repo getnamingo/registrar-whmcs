@@ -134,12 +134,6 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                 $stmt->execute();
 
                 if ($f = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    $metaQuery = "SELECT * FROM namingo_domain_meta WHERE domain_id = :domain_id";
-                    $stmtMeta = $pdo->prepare($metaQuery);
-                    $stmtMeta->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
-                    $stmtMeta->execute();
-                    $domainMeta = $stmtMeta->fetch(PDO::FETCH_ASSOC);
-
                     $statusQuery = "SELECT status FROM namingo_domain_status WHERE domain_id = :domain_id";
                     $stmtStatus = $pdo->prepare($statusQuery);
                     $stmtStatus->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
@@ -159,7 +153,7 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                         $res .= "Internationalized Domain Name: " . mb_strtoupper($internationalizedName) . "\n";
                     }
 
-                    $res .= "Registry Domain ID: " . ($domainMeta['registry_domain_id'] ?? '')
+                    $res .= "Registry Domain ID: " . ($f['registry_domain_id'] ?? '')
                         ."\nRegistrar WHOIS Server: ".$c['registrar_whois']
                         ."\nRegistrar URL: ".$c['registrar_url']
                         ."\nUpdated Date: ".$f['update']
@@ -169,8 +163,8 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                         ."\nRegistrar IANA ID: ".$c['registrar_iana']
                         ."\nRegistrar Abuse Contact Email: ".$c['abuse_email']
                         ."\nRegistrar Abuse Contact Phone: ".$c['abuse_phone']
-                        ."\nReseller: " . ($domainMeta['reseller'] ?? '')
-                        ."\nReseller URL: " . ($domainMeta['reseller_url'] ?? '');
+                        ."\nReseller: " . ($f['reseller'] ?? '')
+                        ."\nReseller URL: " . ($f['reseller_url'] ?? '');
                         
                     if (!empty($domainStatuses)) {
                         foreach ($domainStatuses as $status) {
@@ -194,8 +188,7 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                             ."\nRegistrant Phone: REDACTED FOR PRIVACY"
                             ."\nRegistrant Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                        $query5 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
-                        FROM namingo_contact,namingo_contact_postalInfo WHERE namingo_contact.id=:registrant AND namingo_contact_postalInfo.contact_id=namingo_contact.id";
+                        $query5 = "SELECT id, identifier, name, org, street1, street2, street3, city, sp, pc, cc, voice, fax, email FROM namingo_contact WHERE id=:registrant";
                         $stmt5 = $pdo->prepare($query5);
                         $stmt5->bindParam(':registrant', $f['registrant'], PDO::PARAM_INT);
                         $stmt5->execute();
@@ -230,12 +223,10 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                             ."\nAdmin Phone: REDACTED FOR PRIVACY"
                             ."\nAdmin Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                        $query6 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
-                        FROM namingo_domain_contact_map,namingo_contact,namingo_contact_postalInfo WHERE namingo_domain_contact_map.domain_id=:domain_id AND namingo_domain_contact_map.type='admin' AND namingo_domain_contact_map.contact_id=namingo_contact.id AND namingo_domain_contact_map.contact_id=namingo_contact_postalInfo.contact_id";
+                        $query6 = "SELECT id, identifier, name, org, street1, street2, street3, city, sp, pc, cc, voice, fax, email FROM namingo_contact WHERE id=:admin";
                         $stmt6 = $pdo->prepare($query6);
-                        $stmt6->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
+                        $stmt6->bindParam(':admin', $f['admin'], PDO::PARAM_INT);
                         $stmt6->execute();
-
                         $f2 = $stmt6->fetch(PDO::FETCH_ASSOC);
                         
                         $res .= "\nRegistry Admin ID: " . ($f2['identifier'] ?? '')
@@ -266,12 +257,10 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                             ."\nBilling Phone: REDACTED FOR PRIVACY"
                             ."\nBilling Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                        $query7 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
-                        FROM namingo_domain_contact_map,namingo_contact,namingo_contact_postalInfo WHERE namingo_domain_contact_map.domain_id=:domain_id AND namingo_domain_contact_map.type='billing' AND namingo_domain_contact_map.contact_id=namingo_contact.id AND namingo_domain_contact_map.contact_id=namingo_contact_postalInfo.contact_id";
+                        $query7 = "SELECT id, identifier, name, org, street1, street2, street3, city, sp, pc, cc, voice, fax, email FROM namingo_contact WHERE id=:billing";
                         $stmt7 = $pdo->prepare($query7);
-                        $stmt7->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
+                        $stmt7->bindParam(':billing', $f['billing'], PDO::PARAM_INT);
                         $stmt7->execute();
-
                         $f2 = $stmt7->fetch(PDO::FETCH_ASSOC);
                         
                         $res .= "\nRegistry Billing ID: " . ($f2['identifier'] ?? '')
@@ -302,12 +291,10 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                             ."\nTech Phone: REDACTED FOR PRIVACY"
                             ."\nTech Email: Kindly refer to the RDDS server associated with the identified registrar in this output to obtain contact details for the Registrant, Admin, or Tech associated with the queried domain name.";
                     } else {
-                        $query8 = "SELECT namingo_contact.id,namingo_contact.identifier,namingo_contact_postalInfo.name,namingo_contact_postalInfo.org,namingo_contact_postalInfo.street1,namingo_contact_postalInfo.street2,namingo_contact_postalInfo.street3,namingo_contact_postalInfo.city,namingo_contact_postalInfo.sp,namingo_contact_postalInfo.pc,namingo_contact_postalInfo.cc,namingo_contact.voice,namingo_contact.fax,namingo_contact.email,namingo_contact_postalInfo.type
-                        FROM namingo_domain_contact_map,namingo_contact,namingo_contact_postalInfo WHERE namingo_domain_contact_map.domain_id=:domain_id AND namingo_domain_contact_map.type='tech' AND namingo_domain_contact_map.contact_id=namingo_contact.id AND namingo_domain_contact_map.contact_id=namingo_contact_postalInfo.contact_id";
+                        $query8 = "SELECT id, identifier, name, org, street1, street2, street3, city, sp, pc, cc, voice, fax, email FROM namingo_contact WHERE id=:tech";
                         $stmt8 = $pdo->prepare($query8);
-                        $stmt8->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
+                        $stmt8->bindParam(':tech', $f['tech'], PDO::PARAM_INT);
                         $stmt8->execute();
-
                         $f2 = $stmt8->fetch(PDO::FETCH_ASSOC);
                         
                         $res .= "\nRegistry Tech ID: " . ($f2['identifier'] ?? '')
@@ -324,18 +311,13 @@ $server->on('receive', function ($server, $fd, $reactorId, $data) use ($c, $pool
                             ."\nTech Fax: ".$f2['fax']
                             ."\nTech Email: ".$f2['email'];
                     }
-                    
-                    $query9 = "SELECT name FROM namingo_domain_host_map,namingo_host WHERE namingo_domain_host_map.domain_id = :domain_id AND namingo_domain_host_map.host_id = namingo_host.id";
-                    $stmt9 = $pdo->prepare($query9);
-                    $stmt9->bindParam(':domain_id', $f['id'], PDO::PARAM_INT);
-                    $stmt9->execute();
 
-                    $counter = 0;
-                    while ($counter < 13) {
-                        $f2 = $stmt9->fetch(PDO::FETCH_ASSOC);
-                        if ($f2 === false) break; // Break if there are no more rows
-                         $res .= "\nName Server: ".$f2['name'];
-                         $counter++;
+                    // Loop through each DNS column from ns1 to ns5
+                    for ($i = 1; $i <= 5; $i++) {
+                        // Check if the ns field exists in $f and is not empty
+                        if (!empty($f["ns$i"])) {
+                            $res .= "\nName Server: " . $f["ns$i"];
+                        }
                     }
 
                     // Query to check if DNSSEC data exists for the domain
