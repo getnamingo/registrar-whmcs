@@ -12,16 +12,12 @@ This guide is for setting up **WHMCS 8.11** with **PHP 8.2** on Ubuntu 24.04.
 
 ```bash
 apt update && apt upgrade -y
-apt install wget unzip -y
-apt install apache2 -y
+apt install -y wget unzip apache2 software-properties-common mariadb-server composer whois certbot python3-certbot-apache
 systemctl enable apache2
 systemctl start apache2
-apt install software-properties-common -y
 add-apt-repository ppa:ondrej/php -y
 apt update
-apt install php8.2 php8.2-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl,swoole} -y
-apt install mariadb-server -y
-apt install composer whois certbot python3-certbot-apache -y
+apt install -y php8.2 php8.2-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl,swoole}
 ```
 
 ## 2. Install ionCube Loader:
