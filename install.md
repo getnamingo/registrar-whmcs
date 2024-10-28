@@ -5,6 +5,8 @@ This guide is for setting up **WHMCS 8.11** with **PHP 8.2** on Ubuntu 24.04.
 > **Note:** If you are using **WHMCS 8.10**, please replace all references to **8.2** with **8.1** throughout this guide.  
 > WHMCS 8.10 is optimized for PHP 8.1, while WHMCS 8.11 is compatible with PHP 8.2. Using the recommended PHP version for your WHMCS version ensures better compatibility and performance.
 
+> **Important:** If **WHMCS 8.11** (or **8.10**) is already installed on your server or VPS with root access, you can skip directly to **Section 6**.  
+> Note: Shared hosting is **not supported**.
 
 ## 1. Install the required packages:
 
