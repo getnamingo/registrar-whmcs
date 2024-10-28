@@ -17,7 +17,7 @@ systemctl enable apache2
 systemctl start apache2
 add-apt-repository ppa:ondrej/php -y
 apt update
-apt install -y php8.2 php8.2-{curl,gd,mbstring,mysql,xml,zip,bcmath,intl,swoole}
+apt install -y php8.2 php8.2-{curl,gd,mbstring,mysql,xml,zip,imap,bcmath,intl,swoole}
 ```
 
 ## 2. Install ionCube Loader:

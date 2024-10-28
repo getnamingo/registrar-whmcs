@@ -48,4 +48,6 @@ $config = array(
     'urs_imap_host' => '{your_imap_server:993/imap/ssl}INBOX',
     'urs_imap_username' => 'your_username',
     'urs_imap_password' => 'your_password',
+    // WHMCS Configuration
+    'whmcs_department_id' => 1,
 );
