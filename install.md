@@ -36,13 +36,14 @@ extension_dir => /usr/lib/php/20210902 => /usr/lib/php/20210902
 
 Make a note of the directory path (e.g., /usr/lib/php/20210902) and copy the appropriate ionCube loader for your PHP version to the PHP extensions directory by running `cp /tmp/ioncube/ioncube_loader_lin_8.2.so /usr/lib/php/20210902/`
 
-You need to edit the PHP configuration file to include ionCube:
+You need to edit the PHP configuration files to include ionCube:
 
 ```bash
 nano /etc/php/8.2/apache2/php.ini
+nano /etc/php/8.2/cli/php.ini
 ```
 
-Add the following line to the top of the file to enable ionCube:
+To enable ionCube, add the following line at the top of each php.ini file:
 
 ```bash
 zend_extension = /usr/lib/php/20210902/ioncube_loader_lin_8.2.so
