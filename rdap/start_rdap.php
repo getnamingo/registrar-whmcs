@@ -372,7 +372,7 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
                 ]
             ),
             'events' => $events,
-            'handle' => $domainDetails['id'] . '',
+            'handle' => $domainDetails['registry_domain_id'] . '',
             'ldhName' => $domain,
             'links' => [
                 [
