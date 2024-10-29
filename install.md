@@ -246,6 +246,9 @@ Add the following configuration, edit `ServerName` at least:
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Content-Security-Policy "default-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; img-src https:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; form-action 'self'; worker-src 'none'; frame-src 'none';"
     Header unset Server
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type"
 
     # Log configuration
     CustomLog /var/log/apache2/rdap_access.log combined
