@@ -334,9 +334,22 @@ chmod -R 755 /var/www/html/whmcs/modules/addons/whois
 
 - Go to Settings > Apps & Integrations in the admin panel, search for "WHOIS & RDAP Client" and then activate "WHOIS & RDAP Client".
 
-- Edit the `/var/www/html/whmcs/modules/addons/whois/check.php` file and set your WHOIS and RDAP server URLs by replacing the placeholder values with your actual server addresses.
+- Set your WHOIS and RDAP server and contact form URLs in the module settings.
 
-## 14. Installing WHMCS EPP-RFC Extensions:
+## 14. Domain Registrant Contact:
+
+```bash
+git clone https://github.com/getnamingo/whmcs-contact
+mv whmcs-contact/contact /var/www/html/whmcs/modules/addons
+chown -R www-data:www-data /var/www/html/whmcs/modules/addons/contact
+chmod -R 755 /var/www/html/whmcs/modules/addons/contact
+```
+
+- Go to Settings > Apps & Integrations in the admin panel, search for "Domain Registrant Contact" and then activate it.
+
+- Set your WHMCS API key in the module settings.
+
+## 15. Installing WHMCS EPP-RFC Extensions:
 
 For every registry backend your registrar wants to support, you need a separate installation of the WHMCS EPP extension. Each module can handle one or more TLDs that share the same configuration details.
 
@@ -393,7 +406,7 @@ chmod -R 755 /var/www/html/whmcs/modules/registrars/eppr
 
 To execute the required OT&E tests by various registries, you can use our Tembo client. You can find it at [https://github.com/getpinga/tembo](https://github.com/getpinga/tembo).
 
-## 15. Further Settings:
+## 16. Further Settings:
 
 1. You will need to link to various ICANN documents in your footer, and also provide your terms and conditions and privacy policy.
 
