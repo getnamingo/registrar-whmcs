@@ -52,7 +52,17 @@ $log->info('server started.');
 // Handle incoming HTTP requests
 $http->on('request', function ($request, $response) use ($c, $pool, $log, $rateLimiter) {
     // Get a PDO connection from the pool
-    $pdo = $pool->get();
+    try {
+        $pdo = $pool->get();
+        if (!$pdo) {
+            throw new PDOException("Failed to retrieve a connection from Swoole PDOPool.");
+        }
+    } catch (PDOException $e) {
+        $log->alert("Swoole PDO Pool failed: " . $e->getMessage());
+        $response->header('Content-Type', 'application/rdap+json');
+        $response->status(500);
+        $response->end(json_encode(['error' => 'Database failure. Please try again later.']));
+    }
 
     $remoteAddr = $request->server['remote_addr'];
     if (($c['rately'] == true) && ($rateLimiter->isRateLimited('rdap', $remoteAddr, $c['limit'], $c['period']))) {
@@ -108,6 +118,7 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
     // Extract and validate the domain name from the request
     $domain = urldecode($domainName);
     $domain = trim($domain);
+    $domain = strtolower($domain);
 
     // Empty domain check
     if (!$domain) {
@@ -149,7 +160,13 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
     // Extract TLD from the domain
     $parts = explode('.', $domain);
     $domainName = $parts[0];
-    $tld = "." . end($parts);
+
+    // Handle multi-segment TLDs (e.g., co.uk, ngo.us, etc.)
+    if (count($parts) > 2) {
+        $tld = "." . $parts[count($parts) - 2] . "." . $parts[count($parts) - 1];
+    } else {
+        $tld = "." . end($parts);
+    }
 
     // Check if the TLD exists in the tld table
     $stmtTLD = $pdo->prepare("SELECT COUNT(*) FROM tbldomainpricing WHERE extension = :tld");
@@ -182,9 +199,16 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
             $response->header('Content-Type', 'application/rdap+json');
             $response->status(404);
             $response->end(json_encode([
+                'rdapConformance' => [
+                    'rdap_level_0',
+                    'icann_rdap_response_profile_0',
+                    'icann_rdap_response_profile_1',
+                    'icann_rdap_technical_implementation_guide_0',
+                    'icann_rdap_technical_implementation_guide_1',
+                ],
                 'errorCode' => 404,
                 'title' => 'Not Found',
-                'description' => 'The requested domain was not found in the RDAP database.',
+                'description' => ['The requested domain was not found in the RDAP database.'],
                 "notices" => [
                     [
                         "description" => [
@@ -331,19 +355,21 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
 
         // Check if domain last update is set and not empty
         if (isset($domainDetails['update']) && !empty($domainDetails['update'])) {
-            $events[] = ['eventAction' => 'last domain update', 'eventDate' => date('Y-m-d', strtotime($domainDetails['update']))];
+            $events[] = ['eventAction' => 'last changed', 'eventDate' => (new DateTime($domainDetails['update']))->format('Y-m-d\TH:i:s.v\Z')];
         }
 
         // Check if domain transfer date is set and not empty
         if (isset($domainDetails['trdate']) && !empty($domainDetails['trdate'])) {
-            $events[] = ['eventAction' => 'domain transfer', 'eventDate' => date('Y-m-d', strtotime($domainDetails['trdate']))];
+            $events[] = ['eventAction' => 'transfer', 'eventDate' => (new DateTime($domainDetails['trdate']))->format('Y-m-d\TH:i:s.v\Z')];
         }
         
         // Construct the RDAP response in JSON format
         $rdapResponse = [
             'rdapConformance' => [
                 'rdap_level_0',
+                'icann_rdap_response_profile_0',
                 'icann_rdap_response_profile_1',
+                'icann_rdap_technical_implementation_guide_0',
                 'icann_rdap_technical_implementation_guide_1',
             ],
             'objectClassName' => 'domain',
@@ -361,7 +387,7 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
                             [
                                 ['version', new stdClass(), 'text', '4.0'],
                                 ["fn", new stdClass(), "text", $c['registrar_name']],
-                                ["tel", ["type" => "voice"], "uri", "tel:" . $c['abuse_phone']],
+                                ["tel", ["type" => ["voice"]], "uri", "tel:" . $c['abuse_phone']],
                                 ["email", new stdClass(), "text", $c['abuse_email']]
                             ]
                         ],
@@ -400,18 +426,22 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
                     ],
                     ],
                 ],
-                [
-                    mapContactToVCard($registrantDetails, 'registrant', $c)
-                ],
-                [
-                    mapContactToVCard($adminDetails, 'administrative', $c)
-                ],
-                [
-                    mapContactToVCard($techDetails, 'technical', $c)
-                ],
-                [
-                    mapContactToVCard($billingDetails, 'billing', $c)
-                ]
+                !$c['minimum_data']
+                    ? array_merge(
+                        [
+                            mapContactToVCard($registrantDetails, 'registrant', $c)
+                        ],
+                        [
+                            mapContactToVCard($adminDetails, 'administrative', $c)
+                        ],
+                        [
+                            mapContactToVCard($techDetails, 'billing', $c)
+                        ],
+                        [
+                            mapContactToVCard($billingDetails, 'technical', $c)
+                        ],
+                    )
+                    : []
             ),
             'events' => $events,
             'handle' => $domainDetails['registry_domain_id'] . '',
@@ -525,13 +555,13 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
     } catch (PDOException $e) {
         $log->error('DB Connection failed: ' . $e->getMessage());
         $response->header('Content-Type', 'application/rdap+json');
-        $response->status(500);
-        $response->end(json_encode(['Database error:' => $e->getMessage()]));
+        $response->status(503);
+        $response->end(json_encode(['error' => 'Error connecting to the RDAP database']));
         return;
     } catch (Throwable $e) {
         $log->error('Error: ' . $e->getMessage());
-        $response->header('Content-Type', 'application/rdap+json');
         $response->status(500);
+        $response->header('Content-Type', 'application/rdap+json');
         $response->end(json_encode(['General error:' => $e->getMessage()]));
         return;
     }
@@ -540,9 +570,11 @@ function handleDomainQuery($request, $response, $pdo, $domainName, $c, $log) {
 function handleHelpQuery($request, $response, $pdo, $c) {
     // Set the RDAP conformance levels
     $rdapConformance = [
-        "rdap_level_0",
-        "icann_rdap_response_profile_1",
-        "icann_rdap_technical_implementation_guide_1"
+        'rdap_level_0',
+        'icann_rdap_response_profile_0',
+        'icann_rdap_response_profile_1',
+        'icann_rdap_technical_implementation_guide_0',
+        'icann_rdap_technical_implementation_guide_1',
     ];
 
     // Set the descriptions and links for the help section
@@ -553,13 +585,15 @@ function handleHelpQuery($request, $response, $pdo, $c) {
         ],
         'links' => [
             [
-                'href' => $c['rdap_url'] . '/help',
+                'value' => $c['rdap_url'] . '/help',
                 'rel' => 'self',
+                'href' => $c['rdap_url'] . '/help',
                 'type' => 'application/rdap+json',
             ],
             [
-                'href' => 'https://namingo.org',
+                'value' => 'https://namingo.org',
                 'rel' => 'related',
+                'href' => 'https://namingo.org',
                 'type' => 'application/rdap+json',
             ]
         ],
@@ -579,11 +613,13 @@ function handleHelpQuery($request, $response, $pdo, $c) {
         "links" => [
         [
             "href" => $c['rdap_url'] . "/help",
+            "value" => $c['rdap_url'] . "/help",
             "rel" => "self",
             "type" => "application/rdap+json"
         ],
         [
             "href" => $c['registrar_url'],
+            "value" => $c['registrar_url'],
             "rel" => "alternate",
             "type" => "text/html"
         ],
