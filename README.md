@@ -1,3 +1,6 @@
+> ⚠️ **This repository has been archived.**  
+> WHMCS is now officially supported in the main [Namingo Registrar repository](https://github.com/getnamingo/registrar).
+
 # Namingo Registrar Platform (WHMCS Edition)
 Open source ICANN-accredited domain registrar management system using WHMCS.
 
